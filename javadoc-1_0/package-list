@@ -1,0 +1,13 @@
+com.arangodb.springframework
+com.arangodb.springframework.annotation
+com.arangodb.springframework.config
+com.arangodb.springframework.core
+com.arangodb.springframework.core.convert
+com.arangodb.springframework.core.convert.resolver
+com.arangodb.springframework.core.mapping
+com.arangodb.springframework.core.template
+com.arangodb.springframework.core.util
+com.arangodb.springframework.repository
+com.arangodb.springframework.repository.query
+com.arangodb.springframework.repository.query.derived
+com.arangodb.springframework.repository.query.derived.geo
