@@ -38,6 +38,7 @@ import com.arangodb.model.DocumentDeleteOptions;
 import com.arangodb.model.DocumentReadOptions;
 import com.arangodb.model.DocumentReplaceOptions;
 import com.arangodb.model.DocumentUpdateOptions;
+import com.arangodb.model.arangosearch.ArangoSearchPropertiesOptions;
 import com.arangodb.springframework.core.convert.ArangoConverter;
 
 /**
@@ -560,6 +561,41 @@ public interface ArangoOperations {
 	 * @throws DataAccessException
 	 */
 	CollectionOperations collection(String name, CollectionCreateOptions options) throws DataAccessException;
+
+	/**
+	 * Return the operations interface for a arangosearch view. If the view does not exists, it is created
+	 * automatically.
+	 * 
+	 * @param entityClass
+	 *            The entity type representing the arangosearch view
+	 * @return {@link ArangoSearchOperations}
+	 * @throws DataAccessException
+	 */
+	ArangoSearchOperations arangosearch(Class<?> entityClass) throws DataAccessException;
+
+	/**
+	 * Return the operations interface for a arangosearch view. If the view does not exists, it is created
+	 * automatically.
+	 * 
+	 * @param name
+	 *            The name of the arangosearch view
+	 * @return {@link ArangoSearchOperations}
+	 * @throws DataAccessException
+	 */
+	ArangoSearchOperations arangosearch(String name) throws DataAccessException;
+
+	/**
+	 * Return the operations interface for a arangosearch view. If the view does not exists, it is created
+	 * automatically.
+	 * 
+	 * @param name
+	 *            The name of the arangosearch view
+	 * @param options
+	 *            Additional options for view creation, can be null
+	 * @return {@link ArangoSearchOperations}
+	 * @throws DataAccessException
+	 */
+	ArangoSearchOperations arangosearch(String name, ArangoSearchPropertiesOptions options) throws DataAccessException;
 
 	/**
 	 * Return the operations interface for a user. The user is not created automatically if it does not exists.

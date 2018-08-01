@@ -53,6 +53,7 @@ import com.arangodb.ArangoCursor;
 import com.arangodb.ArangoDB;
 import com.arangodb.ArangoDBException;
 import com.arangodb.ArangoDatabase;
+import com.arangodb.ArangoSearch;
 import com.arangodb.entity.ArangoDBVersion;
 import com.arangodb.entity.DocumentEntity;
 import com.arangodb.entity.MultiDocumentEntity;
@@ -69,12 +70,14 @@ import com.arangodb.model.GeoIndexOptions;
 import com.arangodb.model.HashIndexOptions;
 import com.arangodb.model.PersistentIndexOptions;
 import com.arangodb.model.SkiplistIndexOptions;
+import com.arangodb.model.arangosearch.ArangoSearchPropertiesOptions;
 import com.arangodb.springframework.annotation.FulltextIndex;
 import com.arangodb.springframework.annotation.GeoIndex;
 import com.arangodb.springframework.annotation.HashIndex;
 import com.arangodb.springframework.annotation.PersistentIndex;
 import com.arangodb.springframework.annotation.SkiplistIndex;
 import com.arangodb.springframework.core.ArangoOperations;
+import com.arangodb.springframework.core.ArangoSearchOperations;
 import com.arangodb.springframework.core.CollectionOperations;
 import com.arangodb.springframework.core.UserOperations;
 import com.arangodb.springframework.core.convert.ArangoConverter;
@@ -109,6 +112,7 @@ public class ArangoTemplate implements ArangoOperations, CollectionCallback, App
 	private final Expression databaseExpression;
 	private final Map<String, ArangoDatabase> databaseCache;
 	private final Map<CollectionCacheKey, CollectionCacheValue> collectionCache;
+	private final Map<CollectionCacheKey, ArangoSearchViewCacheValue> arangoSearchViewCache;
 
 	private final StandardEvaluationContext context;
 
@@ -133,6 +137,7 @@ public class ArangoTemplate implements ArangoOperations, CollectionCallback, App
 		this.context = new StandardEvaluationContext();
 		// set concurrency level to 1 as writes are very rare compared to reads
 		collectionCache = new ConcurrentHashMap<>(8, 0.9f, 1);
+		arangoSearchViewCache = new ConcurrentHashMap<>(8, 0.9f, 1);
 		databaseCache = new ConcurrentHashMap<>(8, 0.9f, 1);
 		version = null;
 	}
@@ -743,6 +748,8 @@ public class ArangoTemplate implements ArangoOperations, CollectionCallback, App
 		databaseCache.remove(db.name());
 		collectionCache.keySet().stream().filter(key -> key.getDb().equals(db.name()))
 				.forEach(key -> collectionCache.remove(key));
+		arangoSearchViewCache.keySet().stream().filter(key -> key.getDb().equals(db.name()))
+				.forEach(key -> collectionCache.remove(key));
 	}
 
 	@Override
@@ -763,6 +770,57 @@ public class ArangoTemplate implements ArangoOperations, CollectionCallback, App
 
 	private CollectionOperations collection(final ArangoCollection collection) {
 		return new DefaultCollectionOperations(collection, collectionCache, exceptionTranslator);
+	}
+
+	@Override
+	public ArangoSearchOperations arangosearch(final Class<?> entityClass) throws DataAccessException {
+		return arangosearch(_arangosearch(entityClass));
+	}
+
+	@Override
+	public ArangoSearchOperations arangosearch(final String name) throws DataAccessException {
+		return arangosearch(_arangosearch(name, null, null));
+	}
+
+	@Override
+	public ArangoSearchOperations arangosearch(final String name, final ArangoSearchPropertiesOptions options)
+			throws DataAccessException {
+		return arangosearch(_arangosearch(name, null, options));
+	}
+
+	private ArangoSearchOperations arangosearch(final ArangoSearch view) {
+		return new DefaultArangoSearchOperations(view, arangoSearchViewCache, exceptionTranslator);
+	}
+
+	private ArangoSearch _arangosearch(final Class<?> entityClass) {
+		final ArangoPersistentEntity<?> persistentEntity = converter.getMappingContext()
+				.getRequiredPersistentEntity(entityClass);
+		return _arangosearch(persistentEntity.getArangoSearchView(), persistentEntity,
+			persistentEntity.getArangoSearchOptions());
+	}
+
+	private ArangoSearch _arangosearch(
+		final String name,
+		final ArangoPersistentEntity<?> persistentEntity,
+		final ArangoSearchPropertiesOptions options) {
+
+		final ArangoDatabase db = db();
+		final Class<?> entityClass = persistentEntity != null ? persistentEntity.getType() : null;
+		final ArangoSearchViewCacheValue value = arangoSearchViewCache
+				.computeIfAbsent(new CollectionCacheKey(db.name(), name), key -> {
+					final ArangoSearch view = db.arangoSearch(name);
+					if (!view.exists()) {
+						view.create();
+					}
+					return new ArangoSearchViewCacheValue(view);
+				});
+		final Collection<Class<?>> entities = value.getEntities();
+		final ArangoSearch view = value.getView();
+		if (persistentEntity != null && !entities.contains(entityClass)) {
+			value.addEntityClass(entityClass);
+			view.updateProperties(persistentEntity.getArangoSearchOptions());
+		}
+		return view;
 	}
 
 	@Override

@@ -49,6 +49,8 @@ import org.springframework.util.StringUtils;
 
 import com.arangodb.entity.CollectionType;
 import com.arangodb.model.CollectionCreateOptions;
+import com.arangodb.model.arangosearch.ArangoSearchPropertiesOptions;
+import com.arangodb.springframework.annotation.ArangoSearchView;
 import com.arangodb.springframework.annotation.Document;
 import com.arangodb.springframework.annotation.Edge;
 import com.arangodb.springframework.annotation.FulltextIndex;
@@ -72,8 +74,10 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 
 	private static final SpelExpressionParser PARSER = new SpelExpressionParser();
 
-	private String collection;
-	private final Expression expression;
+	private final String collection;
+	private final String arangoSearch;
+	private final Expression collectionExpression;
+	private final Expression arangoSearchExpression;
 	private final StandardEvaluationContext context;
 
 	private ArangoPersistentProperty arangoIdProperty;
@@ -85,12 +89,12 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	private final Collection<ArangoPersistentProperty> fulltextIndexedProperties;
 
 	private final CollectionCreateOptions collectionOptions;
+	private final ArangoSearchPropertiesOptions arangoSearchOptions;
 
 	private final Map<Class<? extends Annotation>, Set<? extends Annotation>> repeatableAnnotationCache;
 
 	public DefaultArangoPersistentEntity(final TypeInformation<T> information) {
 		super(information);
-		collection = StringUtils.uncapitalize(information.getType().getSimpleName());
 		context = new StandardEvaluationContext();
 		hashIndexedProperties = new ArrayList<>();
 		skiplistIndexedProperties = new ArrayList<>();
@@ -100,16 +104,34 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		repeatableAnnotationCache = new HashMap<>();
 		final Document document = findAnnotation(Document.class);
 		final Edge edge = findAnnotation(Edge.class);
-		if (edge != null) {
-			collection = StringUtils.hasText(edge.value()) ? edge.value() : collection;
-			collectionOptions = createCollectionOptions(edge);
-		} else if (document != null) {
-			collection = StringUtils.hasText(document.value()) ? document.value() : collection;
+		final ArangoSearchView asView = findAnnotation(ArangoSearchView.class);
+		final String uncapitalizeTypeName = StringUtils.uncapitalize(information.getType().getSimpleName());
+		if (document != null) {
+			collection = StringUtils.hasText(document.value()) ? document.value() : uncapitalizeTypeName;
 			collectionOptions = createCollectionOptions(document);
-		} else {
+			collectionExpression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
+		} else if (edge != null) {
+			collection = StringUtils.hasText(edge.value()) ? edge.value() : uncapitalizeTypeName;
+			collectionOptions = createCollectionOptions(edge);
+			collectionExpression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
+		} else if (asView == null) {
+			collection = uncapitalizeTypeName;
 			collectionOptions = new CollectionCreateOptions().type(CollectionType.DOCUMENT);
+			collectionExpression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
+		} else {
+			collection = null;
+			collectionOptions = null;
+			collectionExpression = null;
 		}
-		expression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
+		if (asView != null) {
+			arangoSearch = StringUtils.hasText(asView.value()) ? asView.value() : uncapitalizeTypeName;
+			arangoSearchOptions = createArangoSearchOptions(asView);
+			arangoSearchExpression = PARSER.parseExpression(arangoSearch, ParserContext.TEMPLATE_EXPRESSION);
+		} else {
+			arangoSearch = null;
+			arangoSearchOptions = null;
+			arangoSearchExpression = null;
+		}
 	}
 
 	private static CollectionCreateOptions createCollectionOptions(final Document annotation) {
@@ -171,9 +193,19 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		return options;
 	}
 
+	private static ArangoSearchPropertiesOptions createArangoSearchOptions(final ArangoSearchView asView) {
+		// TODO
+		return null;
+	}
+
 	@Override
 	public String getCollection() {
-		return expression != null ? expression.getValue(context, String.class) : collection;
+		return collectionExpression != null ? collectionExpression.getValue(context, String.class) : collection;
+	}
+
+	@Override
+	public String getArangoSearchView() {
+		return arangoSearchExpression != null ? arangoSearchExpression.getValue(context, String.class) : arangoSearch;
 	}
 
 	@Override
@@ -212,6 +244,11 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	@Override
 	public CollectionCreateOptions getCollectionOptions() {
 		return collectionOptions;
+	}
+
+	@Override
+	public ArangoSearchPropertiesOptions getArangoSearchOptions() {
+		return arangoSearchOptions;
 	}
 
 	@Override
