@@ -48,11 +48,15 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import com.arangodb.entity.CollectionType;
+import com.arangodb.entity.arangosearch.CollectionLink;
+import com.arangodb.entity.arangosearch.ConsolidateThreshold;
+import com.arangodb.entity.arangosearch.ConsolidateType;
 import com.arangodb.model.CollectionCreateOptions;
 import com.arangodb.model.arangosearch.ArangoSearchPropertiesOptions;
 import com.arangodb.springframework.annotation.ArangoSearchView;
 import com.arangodb.springframework.annotation.Document;
 import com.arangodb.springframework.annotation.Edge;
+import com.arangodb.springframework.annotation.FieldLink;
 import com.arangodb.springframework.annotation.FulltextIndex;
 import com.arangodb.springframework.annotation.FulltextIndexes;
 import com.arangodb.springframework.annotation.GeoIndex;
@@ -87,6 +91,7 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	private final Collection<ArangoPersistentProperty> persistentIndexedProperties;
 	private final Collection<ArangoPersistentProperty> geoIndexedProperties;
 	private final Collection<ArangoPersistentProperty> fulltextIndexedProperties;
+	private final Collection<ArangoPersistentProperty> fieldLinkedProperties;
 
 	private final CollectionCreateOptions collectionOptions;
 	private final ArangoSearchPropertiesOptions arangoSearchOptions;
@@ -101,18 +106,19 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		persistentIndexedProperties = new ArrayList<>();
 		geoIndexedProperties = new ArrayList<>();
 		fulltextIndexedProperties = new ArrayList<>();
+		fieldLinkedProperties = new ArrayList<>();
 		repeatableAnnotationCache = new HashMap<>();
 		final Document document = findAnnotation(Document.class);
 		final Edge edge = findAnnotation(Edge.class);
 		final ArangoSearchView asView = findAnnotation(ArangoSearchView.class);
 		final String uncapitalizeTypeName = StringUtils.uncapitalize(information.getType().getSimpleName());
-		if (document != null) {
-			collection = StringUtils.hasText(document.value()) ? document.value() : uncapitalizeTypeName;
-			collectionOptions = createCollectionOptions(document);
-			collectionExpression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
-		} else if (edge != null) {
+		if (edge != null) {
 			collection = StringUtils.hasText(edge.value()) ? edge.value() : uncapitalizeTypeName;
 			collectionOptions = createCollectionOptions(edge);
+			collectionExpression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
+		} else if (document != null) {
+			collection = StringUtils.hasText(document.value()) ? document.value() : uncapitalizeTypeName;
+			collectionOptions = createCollectionOptions(document);
 			collectionExpression = PARSER.parseExpression(collection, ParserContext.TEMPLATE_EXPRESSION);
 		} else if (asView == null) {
 			collection = uncapitalizeTypeName;
@@ -193,9 +199,86 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		return options;
 	}
 
-	private static ArangoSearchPropertiesOptions createArangoSearchOptions(final ArangoSearchView asView) {
-		// TODO
-		return null;
+	private ArangoSearchPropertiesOptions createArangoSearchOptions(final ArangoSearchView view) {
+		final ArangoSearchPropertiesOptions options = new ArangoSearchPropertiesOptions();
+		final String locale = view.locale();
+		if (!locale.isEmpty()) {
+			options.locale(locale);
+		}
+		final long commitIntervalMsec = view.commitIntervalMsec();
+		if (commitIntervalMsec > -1) {
+			options.commitIntervalMsec(commitIntervalMsec);
+		}
+		final long cleanupIntervalStep = view.cleanupIntervalStep();
+		if (cleanupIntervalStep > -1) {
+			options.cleanupIntervalStep(cleanupIntervalStep);
+		}
+		final ConsolidateThreshold countThreshold = threshold(ConsolidateType.COUNT, view.countThreshold(),
+			view.countSegmentThreshold());
+		if (countThreshold != null) {
+			options.threshold(countThreshold);
+		}
+		final ConsolidateThreshold bytesThreshold = threshold(ConsolidateType.BYTES, view.bytesThreshold(),
+			view.bytesSegmentThreshold());
+		if (bytesThreshold != null) {
+			options.threshold(bytesThreshold);
+		}
+		final ConsolidateThreshold bytesAccumThreshold = threshold(ConsolidateType.BYTES_ACCUM,
+			view.bytesAccumThreshold(), view.bytesAccumSegmentThreshold());
+		if (bytesAccumThreshold != null) {
+			options.threshold(bytesAccumThreshold);
+		}
+		final ConsolidateThreshold fillThreshold = threshold(ConsolidateType.FILL, view.fillThreshold(),
+			view.fillSegmentThreshold());
+		if (fillThreshold != null) {
+			options.threshold(fillThreshold);
+		}
+		final String collection = getCollection();
+		if (collection != null) {
+			final CollectionLink link = CollectionLink.on(collection);
+			final String[] analyzers = view.analyzers();
+			if (analyzers.length > 0) {
+				link.analyzers(analyzers);
+			}
+			link.includeAllFields(view.includeAllFields());
+			link.trackListPositions(view.trackListPositions());
+			link.storeValues(view.storeValues());
+			fieldLinkedProperties.stream().map(property -> fieldLink(property)).forEach(link::fields);
+		}
+		return options;
+	}
+
+	private static ConsolidateThreshold threshold(
+		final ConsolidateType type,
+		final double threshold,
+		final long segmentThreshold) {
+		final ConsolidateThreshold of;
+		if (threshold > -1 || segmentThreshold > -1) {
+			of = ConsolidateThreshold.of(type);
+			if (threshold > -1) {
+				of.threshold(threshold);
+			}
+			if (segmentThreshold > -1) {
+				of.segmentThreshold(segmentThreshold);
+			}
+		} else {
+			of = null;
+		}
+		return of;
+	}
+
+	private static com.arangodb.entity.arangosearch.FieldLink fieldLink(final ArangoPersistentProperty property) {
+		final com.arangodb.entity.arangosearch.FieldLink fieldLink = com.arangodb.entity.arangosearch.FieldLink
+				.on(property.getName());
+		final FieldLink an = property.getFieldLink().get();
+		final String[] analyzers = an.analyzers();
+		if (analyzers.length > 0) {
+			fieldLink.analyzers(analyzers);
+		}
+		fieldLink.includeAllFields(an.includeAllFields());
+		fieldLink.trackListPositions(an.trackListPositions());
+		fieldLink.storeValues(an.storeValues());
+		return fieldLink;
 	}
 
 	@Override
@@ -229,6 +312,7 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		property.getPersistentIndexed().ifPresent(i -> persistentIndexedProperties.add(property));
 		property.getGeoIndexed().ifPresent(i -> geoIndexedProperties.add(property));
 		property.getFulltextIndexed().ifPresent(i -> fulltextIndexedProperties.add(property));
+		property.getFieldLink().ifPresent(i -> fieldLinkedProperties.add(property));
 	}
 
 	@Override

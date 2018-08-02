@@ -811,6 +811,7 @@ public class ArangoTemplate implements ArangoOperations, CollectionCallback, App
 					final ArangoSearch view = db.arangoSearch(name);
 					if (!view.exists()) {
 						view.create();
+						view.updateProperties(options);
 					}
 					return new ArangoSearchViewCacheValue(view);
 				});

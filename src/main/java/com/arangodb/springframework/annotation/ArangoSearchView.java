@@ -26,6 +26,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.arangodb.entity.arangosearch.StoreValuesType;
+
 /**
  * @author Mark Vollmary
  *
@@ -64,4 +66,40 @@ public @interface ArangoSearchView {
 	 */
 	long cleanupIntervalStep() default -1;
 
+	double countThreshold() default -1;
+
+	long countSegmentThreshold() default -1;
+
+	double bytesThreshold() default -1;
+
+	long bytesSegmentThreshold() default -1;
+
+	double bytesAccumThreshold() default -1;
+
+	long bytesAccumSegmentThreshold() default -1;
+
+	double fillThreshold() default -1;
+
+	long fillSegmentThreshold() default -1;
+
+	/**
+	 * @return The list of analyzers to be used for indexing of string values (default: ["identity"]).
+	 */
+	String[] analyzers() default {};
+
+	/**
+	 * @return The flag determines whether or not to index all fields on a particular level of depth (default: false).
+	 */
+	boolean includeAllFields() default false;
+
+	/**
+	 * @return The flag determines whether or not values in a lists should be treated separate (default: false).
+	 */
+	boolean trackListPositions() default false;
+
+	/**
+	 * @return How should the view track the attribute values, this setting allows for additional value retrieval
+	 *         optimizations.
+	 */
+	StoreValuesType storeValues() default StoreValuesType.NONE;
 }

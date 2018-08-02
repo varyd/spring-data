@@ -33,6 +33,7 @@ import org.springframework.util.StringUtils;
 
 import com.arangodb.springframework.annotation.ArangoId;
 import com.arangodb.springframework.annotation.Field;
+import com.arangodb.springframework.annotation.FieldLink;
 import com.arangodb.springframework.annotation.From;
 import com.arangodb.springframework.annotation.FulltextIndexed;
 import com.arangodb.springframework.annotation.GeoIndexed;
@@ -143,6 +144,11 @@ public class DefaultArangoPersistentProperty extends AnnotationBasedPersistentPr
 	@Override
 	public Optional<FulltextIndexed> getFulltextIndexed() {
 		return Optional.ofNullable(findAnnotation(FulltextIndexed.class));
+	}
+
+	@Override
+	public Optional<FieldLink> getFieldLink() {
+		return Optional.ofNullable(findAnnotation(FieldLink.class));
 	}
 
 }

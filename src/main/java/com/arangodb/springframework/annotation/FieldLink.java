@@ -18,7 +18,7 @@
  * Copyright holder is ArangoDB GmbH, Cologne, Germany
  */
 
-package com.arangodb.springframework.annotation.arangosearch;
+package com.arangodb.springframework.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -28,8 +28,9 @@ import java.lang.annotation.Target;
 import com.arangodb.entity.arangosearch.StoreValuesType;
 
 /**
+ * used to link fields in an arangosearch view
+ * 
  * @author Mark Vollmary
- *
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.FIELD })
