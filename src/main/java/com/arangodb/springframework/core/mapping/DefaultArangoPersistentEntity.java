@@ -94,7 +94,7 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	private final Collection<ArangoPersistentProperty> fieldLinkedProperties;
 
 	private final CollectionCreateOptions collectionOptions;
-	private final ArangoSearchPropertiesOptions arangoSearchOptions;
+	private ArangoSearchPropertiesOptions arangoSearchOptions;
 
 	private final Map<Class<? extends Annotation>, Set<? extends Annotation>> repeatableAnnotationCache;
 
@@ -131,19 +131,17 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		}
 		if (asView != null) {
 			arangoSearch = StringUtils.hasText(asView.value()) ? asView.value() : uncapitalizeTypeName;
-			arangoSearchOptions = createArangoSearchOptions(asView);
 			arangoSearchExpression = PARSER.parseExpression(arangoSearch, ParserContext.TEMPLATE_EXPRESSION);
 		} else {
 			arangoSearch = null;
-			arangoSearchOptions = null;
 			arangoSearchExpression = null;
 		}
 	}
 
 	private static CollectionCreateOptions createCollectionOptions(final Document annotation) {
 		final CollectionCreateOptions options = new CollectionCreateOptions().type(CollectionType.DOCUMENT)
-				.waitForSync(annotation.waitForSync()).doCompact(annotation.doCompact())
-				.isVolatile(annotation.isVolatile()).isSystem(annotation.isSystem());
+				.waitForSync(annotation.waitForSync()).doCompact(annotation.doCompact()).isVolatile(annotation.isVolatile())
+				.isSystem(annotation.isSystem());
 		if (annotation.journalSize() > -1) {
 			options.journalSize(annotation.journalSize());
 		}
@@ -165,16 +163,16 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		}
 		if (annotation.allowUserKeys()) {
 			options.keyOptions(annotation.allowUserKeys(), annotation.keyType(),
-				annotation.keyIncrement() > -1 ? annotation.keyIncrement() : null,
-				annotation.keyOffset() > -1 ? annotation.keyOffset() : null);
+					annotation.keyIncrement() > -1 ? annotation.keyIncrement() : null,
+					annotation.keyOffset() > -1 ? annotation.keyOffset() : null);
 		}
 		return options;
 	}
 
 	private static CollectionCreateOptions createCollectionOptions(final Edge annotation) {
 		final CollectionCreateOptions options = new CollectionCreateOptions().type(CollectionType.EDGES)
-				.waitForSync(annotation.waitForSync()).doCompact(annotation.doCompact())
-				.isVolatile(annotation.isVolatile()).isSystem(annotation.isSystem());
+				.waitForSync(annotation.waitForSync()).doCompact(annotation.doCompact()).isVolatile(annotation.isVolatile())
+				.isSystem(annotation.isSystem());
 		if (annotation.journalSize() > -1) {
 			options.journalSize(annotation.journalSize());
 		}
@@ -193,8 +191,8 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 		}
 		if (annotation.allowUserKeys()) {
 			options.keyOptions(annotation.allowUserKeys(), annotation.keyType(),
-				annotation.keyIncrement() > -1 ? annotation.keyIncrement() : null,
-				annotation.keyOffset() > -1 ? annotation.keyOffset() : null);
+					annotation.keyIncrement() > -1 ? annotation.keyIncrement() : null,
+					annotation.keyOffset() > -1 ? annotation.keyOffset() : null);
 		}
 		return options;
 	}
@@ -214,22 +212,22 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 			options.cleanupIntervalStep(cleanupIntervalStep);
 		}
 		final ConsolidateThreshold countThreshold = threshold(ConsolidateType.COUNT, view.countThreshold(),
-			view.countSegmentThreshold());
+				view.countSegmentThreshold());
 		if (countThreshold != null) {
 			options.threshold(countThreshold);
 		}
 		final ConsolidateThreshold bytesThreshold = threshold(ConsolidateType.BYTES, view.bytesThreshold(),
-			view.bytesSegmentThreshold());
+				view.bytesSegmentThreshold());
 		if (bytesThreshold != null) {
 			options.threshold(bytesThreshold);
 		}
-		final ConsolidateThreshold bytesAccumThreshold = threshold(ConsolidateType.BYTES_ACCUM,
-			view.bytesAccumThreshold(), view.bytesAccumSegmentThreshold());
+		final ConsolidateThreshold bytesAccumThreshold = threshold(ConsolidateType.BYTES_ACCUM, view.bytesAccumThreshold(),
+				view.bytesAccumSegmentThreshold());
 		if (bytesAccumThreshold != null) {
 			options.threshold(bytesAccumThreshold);
 		}
 		final ConsolidateThreshold fillThreshold = threshold(ConsolidateType.FILL, view.fillThreshold(),
-			view.fillSegmentThreshold());
+				view.fillSegmentThreshold());
 		if (fillThreshold != null) {
 			options.threshold(fillThreshold);
 		}
@@ -244,14 +242,13 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 			link.trackListPositions(view.trackListPositions());
 			link.storeValues(view.storeValues());
 			fieldLinkedProperties.stream().map(property -> fieldLink(property)).forEach(link::fields);
+			options.link(link);
 		}
 		return options;
 	}
 
-	private static ConsolidateThreshold threshold(
-		final ConsolidateType type,
-		final double threshold,
-		final long segmentThreshold) {
+	private static ConsolidateThreshold threshold(final ConsolidateType type, final double threshold,
+			final long segmentThreshold) {
 		final ConsolidateThreshold of;
 		if (threshold > -1 || segmentThreshold > -1) {
 			of = ConsolidateThreshold.of(type);
@@ -332,6 +329,9 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 
 	@Override
 	public ArangoSearchPropertiesOptions getArangoSearchOptions() {
+		if (arangoSearch != null && arangoSearchOptions == null) {
+			arangoSearchOptions = createArangoSearchOptions(findAnnotation(ArangoSearchView.class));
+		}
 		return arangoSearchOptions;
 	}
 
@@ -345,8 +345,7 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	@Override
 	public Collection<SkiplistIndex> getSkiplistIndexes() {
 		final Collection<SkiplistIndex> indexes = getIndexes(SkiplistIndex.class);
-		Optional.ofNullable(findAnnotation(SkiplistIndexes.class))
-				.ifPresent(i -> indexes.addAll(Arrays.asList(i.value())));
+		Optional.ofNullable(findAnnotation(SkiplistIndexes.class)).ifPresent(i -> indexes.addAll(Arrays.asList(i.value())));
 		return indexes;
 	}
 
@@ -368,8 +367,7 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	@Override
 	public Collection<FulltextIndex> getFulltextIndexes() {
 		final Collection<FulltextIndex> indexes = getIndexes(FulltextIndex.class);
-		Optional.ofNullable(findAnnotation(FulltextIndexes.class))
-				.ifPresent(i -> indexes.addAll(Arrays.asList(i.value())));
+		Optional.ofNullable(findAnnotation(FulltextIndexes.class)).ifPresent(i -> indexes.addAll(Arrays.asList(i.value())));
 		return indexes;
 	}
 
@@ -407,7 +405,7 @@ public class DefaultArangoPersistentEntity<T> extends BasicPersistentEntity<T, A
 	@SuppressWarnings("unchecked")
 	public <A extends Annotation> Set<A> findAnnotations(final Class<A> annotationType) {
 		return (Set<A>) repeatableAnnotationCache.computeIfAbsent(annotationType,
-			it -> AnnotatedElementUtils.findMergedRepeatableAnnotations(getType(), it));
+				it -> AnnotatedElementUtils.findMergedRepeatableAnnotations(getType(), it));
 	}
 
 	private static class AbsentAccessor extends TargetAwareIdentifierAccessor {
