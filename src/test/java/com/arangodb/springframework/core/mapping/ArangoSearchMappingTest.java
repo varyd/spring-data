@@ -52,7 +52,7 @@ public class ArangoSearchMappingTest extends AbstractArangoTest {
 		assertThat(fieldLink.getIncludeAllFields(), is(true));
 	}
 
-	@ArangoSearchView(value = "byEntityClassView", cleanupIntervalStep = 15L, commitIntervalMsec = 65000L, countThreshold = 1.)
+	@ArangoSearchView(value = "byEntityClassView", cleanupIntervalStep = 15L, commitIntervalMsec = 65000L, countThreshold = 1., trackListPositions = true)
 	@Document("view-test-collection")
 	static class SimpleTestEntity {
 
@@ -76,6 +76,7 @@ public class ArangoSearchMappingTest extends AbstractArangoTest {
 		assertThat(properties.getLinks().size(), is(1));
 		final CollectionLink collectionLink = properties.getLinks().iterator().next();
 		assertThat(collectionLink.getName(), is("view-test-collection"));
+		assertThat(collectionLink.getTrackListPositions(), is(true));
 		assertThat(collectionLink.getFields().size(), is(1));
 		final FieldLink fieldLink = collectionLink.getFields().iterator().next();
 		assertThat(fieldLink.getName(), is("value"));
