@@ -135,8 +135,6 @@ public class ArangoSearchMappingTest extends AbstractArangoTest {
 
 	@Test
 	public void twoCollectionInheritanceView() {
-		template.collection(InheritanceViewTestEntityA.class);
-		template.collection(InheritanceViewTestEntityB.class);
 		template.arangosearch(InheritanceViewTestEntityA.class);
 		final ArangoSearchOperations arangosearch = template.arangosearch(InheritanceViewTestEntityB.class);
 		final ArangoSearchPropertiesEntity properties = arangosearch.getProperties();

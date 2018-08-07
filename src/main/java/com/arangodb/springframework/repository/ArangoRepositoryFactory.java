@@ -21,8 +21,6 @@
 package com.arangodb.springframework.repository;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.mapping.context.MappingContext;
@@ -69,35 +67,23 @@ public class ArangoRepositoryFactory extends RepositoryFactorySupport {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T, ID> ArangoEntityInformation<T, ID> getEntityInformation(final Class<T> domainClass) {
-		return new ArangoPersistentEntityInformation<>(
+		return new ArangoPersistentEntityInformation<T, ID>(
 				(ArangoPersistentEntity<T>) context.getRequiredPersistentEntity(domainClass));
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	protected Object getTargetRepository(final RepositoryInformation metadata) {
-		final Class<?> repositoryBaseClass = metadata.getRepositoryBaseClass();
-		if (repositoryBaseClass == SimpleArangoSearchRepository.class) {
-			return new SimpleArangoSearchRepository(arangoOperations, metadata.getDomainType());
-		} else {
-			return new SimpleArangoRepository(arangoOperations, metadata.getDomainType());
-		}
+		return new SimpleArangoRepository(arangoOperations, metadata.getDomainType());
 	}
 
 	@Override
 	protected Class<?> getRepositoryBaseClass(final RepositoryMetadata metadata) {
-		final List<Class<?>> interfaces = Arrays.asList(metadata.getRepositoryInterface().getInterfaces());
-		if (interfaces.contains(ArangoRepository.class)) {
-			return SimpleArangoRepository.class;
-		} else if (interfaces.contains(ArangoSearchRepository.class)) {
-			return SimpleArangoSearchRepository.class;
-		} else {
-			return SimpleArangoRepository.class;
-		}
+		return SimpleArangoRepository.class;
 	}
 
 	@Override
-	protected RepositoryMetadata getRepositoryMetadata(final Class<?> repositoryInterface) {
+	protected RepositoryMetadata getRepositoryMetadata(Class<?> repositoryInterface) {
 		Assert.notNull(repositoryInterface, "Repository interface must not be null!");
 
 		return Repository.class.isAssignableFrom(repositoryInterface)
@@ -157,13 +143,13 @@ public class ArangoRepositoryFactory extends RepositoryFactorySupport {
 
 		private final TypeInformation<?> typeInformation;
 
-		public DefaultArangoRepositoryMetadata(final Class<?> repositoryInterface) {
+		public DefaultArangoRepositoryMetadata(Class<?> repositoryInterface) {
 			super(repositoryInterface);
 			typeInformation = ClassTypeInformation.from(repositoryInterface);
 		}
 
 		@Override
-		public Class<?> getReturnedDomainClass(final Method method) {
+		public Class<?> getReturnedDomainClass(Method method) {
 			if (ArangoCursor.class.isAssignableFrom(method.getReturnType())) {
 				return typeInformation.getReturnType(method).getRequiredComponentType().getType();
 			} else {
@@ -177,13 +163,13 @@ public class ArangoRepositoryFactory extends RepositoryFactorySupport {
 
 		private final TypeInformation<?> typeInformation;
 
-		public AnnotationArangoRepositoryMetadata(final Class<?> repositoryInterface) {
+		public AnnotationArangoRepositoryMetadata(Class<?> repositoryInterface) {
 			super(repositoryInterface);
 			typeInformation = ClassTypeInformation.from(repositoryInterface);
 		}
 
 		@Override
-		public Class<?> getReturnedDomainClass(final Method method) {
+		public Class<?> getReturnedDomainClass(Method method) {
 			if (ArangoCursor.class.isAssignableFrom(method.getReturnType())) {
 				return typeInformation.getReturnType(method).getRequiredComponentType().getType();
 			} else {
