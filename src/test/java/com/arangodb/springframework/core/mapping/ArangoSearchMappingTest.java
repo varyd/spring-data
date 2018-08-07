@@ -6,6 +6,8 @@ package com.arangodb.springframework.core.mapping;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.util.Collection;
+
 import org.junit.Test;
 
 import com.arangodb.entity.ViewType;
@@ -52,7 +54,7 @@ public class ArangoSearchMappingTest extends AbstractArangoTest {
 
 	@ArangoSearchView(value = "byEntityClassView", cleanupIntervalStep = 15L, commitIntervalMsec = 65000L, countThreshold = 1.)
 	@Document("view-test-collection")
-	public static class SimpleTestEntity {
+	static class SimpleTestEntity {
 
 		@com.arangodb.springframework.annotation.FieldLink(includeAllFields = true)
 		private String value;
@@ -78,6 +80,70 @@ public class ArangoSearchMappingTest extends AbstractArangoTest {
 		final FieldLink fieldLink = collectionLink.getFields().iterator().next();
 		assertThat(fieldLink.getName(), is("value"));
 		assertThat(fieldLink.getIncludeAllFields(), is(true));
+	}
+
+	@ArangoSearchView("twoCollectionView")
+	@Document
+	static class TwoCollectionsSameViewTestEntityA {
+
+		@com.arangodb.springframework.annotation.FieldLink
+		private String value;
+
+	}
+
+	@ArangoSearchView("twoCollectionView")
+	@Document
+	static class TwoCollectionsSameViewTestEntityB {
+
+		@com.arangodb.springframework.annotation.FieldLink
+		private String value;
+
+	}
+
+	@Test
+	public void twoCollectionView() {
+		template.arangosearch(TwoCollectionsSameViewTestEntityA.class);
+		final ArangoSearchOperations arangosearch = template.arangosearch(TwoCollectionsSameViewTestEntityB.class);
+		final ArangoSearchPropertiesEntity properties = arangosearch.getProperties();
+		final Collection<CollectionLink> links = properties.getLinks();
+		assertThat(links.size(), is(2));
+		for (final CollectionLink collectionLink : links) {
+			final Collection<FieldLink> fields = collectionLink.getFields();
+			assertThat(fields.size(), is(1));
+			assertThat(fields.iterator().next().getName(), is("value"));
+		}
+	}
+
+	@ArangoSearchView("superView")
+	static class SuperViewTestEntity {
+
+		@com.arangodb.springframework.annotation.FieldLink
+		private String value;
+
+	}
+
+	@Document
+	static class InheritanceViewTestEntityA extends SuperViewTestEntity {
+
+	}
+
+	@Document
+	static class InheritanceViewTestEntityB extends SuperViewTestEntity {
+
+	}
+
+	@Test
+	public void twoCollectionInheritanceView() {
+		template.arangosearch(InheritanceViewTestEntityA.class);
+		final ArangoSearchOperations arangosearch = template.arangosearch(InheritanceViewTestEntityB.class);
+		final ArangoSearchPropertiesEntity properties = arangosearch.getProperties();
+		final Collection<CollectionLink> links = properties.getLinks();
+		assertThat(links.size(), is(2));
+		for (final CollectionLink collectionLink : links) {
+			final Collection<FieldLink> fields = collectionLink.getFields();
+			assertThat(fields.size(), is(1));
+			assertThat(fields.iterator().next().getName(), is("value"));
+		}
 	}
 
 }
