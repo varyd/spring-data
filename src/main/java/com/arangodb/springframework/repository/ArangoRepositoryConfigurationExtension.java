@@ -23,10 +23,10 @@ package com.arangodb.springframework.repository;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 import org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport;
 
+import com.arangodb.springframework.annotation.ArangoSearchView;
 import com.arangodb.springframework.annotation.Document;
 import com.arangodb.springframework.annotation.Edge;
 
@@ -56,12 +56,12 @@ public class ArangoRepositoryConfigurationExtension extends RepositoryConfigurat
 
 	@Override
 	protected Collection<Class<? extends Annotation>> getIdentifyingAnnotations() {
-		return Arrays.asList(Document.class, Edge.class);
+		return Arrays.asList(Document.class, Edge.class, ArangoSearchView.class);
 	}
 
 	@Override
 	protected Collection<Class<?>> getIdentifyingTypes() {
-		return Collections.singleton(ArangoRepository.class);
+		return Arrays.asList(ArangoRepository.class, ArangoSearchRepository.class);
 	}
 
 }
